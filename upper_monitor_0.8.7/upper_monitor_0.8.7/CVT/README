@@ -1,0 +1,5 @@
+This project use centroidal voronoi tessellation(CVT) algorithm to compute location of robots in 3D space, mainly contain a function called CVT.
+To call this function just include the CVT.hpp is enough, the usage of this function is in CVT.hpp.
+To build this project just input make in the terminal and it will output a file named libCVT.a, link it to your project.
+To rebuild this project input make clean and input make.
+Created by Junxun Zhong in 2016.11.15
