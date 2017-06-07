@@ -1,0 +1,556 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/> 
+<title>Google Map </title> 
+<script type="text/javascript" src="mapfiles/mapapi_3.12.15.js"></script>
+<script type="text/javascript" src="js/gmap_exp.js"></script>
+<script type="text/javascript" src="js/map_helper.js"></script>
+<script type="text/javascript" src="js/jquery.js"></script>
+<!--弹出层控件-->
+<link type="text/css" rel="stylesheet"href="images/popup_laye.css" />
+<script type="text/javascript" src="js/popup_layer.js"></script>
+<script type="text/javascript">
+//封装操作对象
+var maphelper = null;
+//信息窗口
+var infowindow = null;
+var mapobj = null;
+var goalSelected = new Array;
+var goalPosition = new Array;
+var leaderGoalPosition = new Array;
+var formationPosition = new Array;
+var formationAccount;
+var waypointAccount;
+var lastMarker = new Array;
+
+$(function()
+{
+        formationAccount = 1;
+        waypointAccount = 0;
+        for(var i=0; i<100; i++)
+	{
+		goalSelected[i] = 0;
+        }
+	
+	for(var i=0; i<100; i++)
+	{
+		goalPosition[i] = new Array;
+		for(var j=0; j<3; j++)
+		{
+			goalPosition[i][j] = 0.0;
+		}
+                leaderGoalPosition[i] = new Array;
+                for(var j=0; j<3; j++)
+                {
+                        leaderGoalPosition[i][j] = 0.0;
+                }
+                formationPosition[i] = new Array;
+                for(var j=0; j<3; j++)
+                {
+                        formationPosition[i][j] = 0.0;
+                }
+	}
+	
+    var mapCanvas = document.getElementById("map_canvas");
+    //地图选项
+    var myOptions = {
+                    //初始缩放级别
+        zoom: 21,
+        //显示中心位置
+        center: new Array(113.386243, 23.063959),
+                        //取消默认的控件
+        disableDefaultUI: false,
+                        //缩放移动控件
+        navigationControl: true,
+                 //街景
+                        streetViewControl: false,
+                 //地图类型控件
+        mapTypeControl: false,
+                 //比例尺控件
+                        scaleControl: true,
+                        mapTypeId: OFFLINE_MAP,
+                        mapPath:"maptile/googlemaps2/roadmap/"
+       };
+
+    maphelper = new mapHelper();
+    mapobj = maphelper.initMap(mapCanvas, myOptions);
+
+
+    var offset = $("#DIR_PANEL").offset();
+    x = -offset.left+3;
+    y = -(offset.top+$("#DIR_PANEL").height());
+    new PopupLayer({trigger:"#DIR_PANEL",popupBlk:"#blk",closeBtn:"#close",
+    offsets:{
+            x:x,
+            y:y
+    }
+    });
+});
+
+
+//指定地图缩放级别
+function SetZoom()
+{
+    var level = $("#MAP_LEVEL").val();
+    maphelper.setZoom(level);
+}
+
+var obj0=null;
+function FindPlane(x,y)
+{
+    var lat = y;
+    var lng = x;
+    maphelper.movePoint(lng,lat);
+}
+
+function MovePoint(x,y,a)
+{
+    var image = a;
+    var lat = y;
+    var lng = x;
+
+    var zoom = $("#ZOOM").val();
+    if(obj0!=null)
+    {
+    maphelper.clearMarker(obj0);
+    }
+
+    maphelper.movePoint(lng,lat);
+    obj0=null;
+     obj0 = maphelper.markerPoint({
+    lat: lat,
+    lng: lng,
+    icon:image   				
+    });
+}
+
+function plane(x,y,n) // 为所有飞行器画航点，第一个位置和当前位置为大标记，中间航点为小标记
+{
+    if(n == 1) // 因为是同时画当前位置，所以以第一个飞行器为例，计算当前航点数
+    {
+        waypointAccount++;
+    }
+
+    var lat = y;  // 进行坐标转换
+    var lng = x;
+    var arr2=GPS.gcj_encrypt(lat,lng);
+    lng=arr2['lon'];
+    lat=arr2['lat'];
+
+    if(waypointAccount > 2) // 如果是中间航点
+    {
+        var temp = n + "";
+        var markerStr;
+        if(n < 10)
+                markerStr = "images/w00" + temp + ".png";
+        else if(n < 100)
+                markerStr = "images/w0" + temp + ".png";
+        else if(n < 1000)
+                markerStr = "images/w0" + temp + ".png";
+        maphelper.markerPoint({
+                  lat: lat,
+                  lng: lng,
+                  icon:markerStr
+          });
+        lastMarker[n].setMap(null);
+    }
+    else
+    {
+    }
+
+    var temp = n + "";
+    var markerStr;
+    if(n < 10)
+            markerStr = "images/00" + temp + ".png";
+    else if(n < 100)
+            markerStr = "images/0" + temp + ".png";
+    else if(n < 1000)
+            markerStr = "images/0" + temp + ".png";
+    lastMarker[n] = maphelper.markerPoint({
+              lat: lat,
+              lng: lng,
+              icon:markerStr
+      });
+}
+
+function Polyline() // 画线功能
+{
+    ClearPoly();
+    //maphelper.clearline();
+    alert("点击地图进行画线");
+    //画线坐标 维度,经度
+    var color = $("#COLOR").val();
+    var weight = $("#WEIGHT").val();
+    var opacity = $("#OPACITY").val();
+
+    maphelper.bindInstanceEvent(mapobj, 'click', function(event){
+                dots.push(new Array(event.latLng.lng(),event.latLng.lat()));
+                //画线
+                var poly = maphelper.polyline({
+                                dots:dots,
+                                color:color,
+                                weight:weight,
+                                opacity:opacity
+                });
+            $("#total_km").empty().text((poly.getLength()/1000).toFixed(3) + "km");
+	});
+}
+
+var polygon = null;
+
+function ClearPoly() // 清除多边形
+{
+//    dots = null;
+    maphelper.clearPoly();
+    $("#total_km").text("");
+    maphelper.clearInstanceEvent(mapobj, 'click');
+}
+
+function ClearLine() // 清除画线
+{
+    ClearPoly();
+    maphelper.clearLine();
+}
+
+function send2qt(x, y, agent_id) // 将点击地图所获得的的值返回给Qt
+{
+    try
+    {
+        var lat=x;
+        var lng=y;
+        var arr2=GPS.gcj_decrypt(lat,lng);
+        lat=arr2['lat'];
+        lng=arr2['lon'];
+        obj.openVLC(lat, lng, agent_id);
+    }
+    catch(e)
+    {
+         alert(e);
+    }
+}
+
+function ClearAllMarkers() // 清除所有标记
+{
+	maphelper.clearMarker();
+        ClearLine();
+        waypointAccount = 0;
+        for(var i=0; i<100; i++)
+	{
+                goalSelected[i] = 0;
+        }
+}
+
+function ClearGoalMarker(agent_id) // 清除指定目标标记
+{
+        goalSelected[agent_id] = 0;
+	maphelper.clearMarker();
+	for(var i=1; i<100; i++)
+	{
+		if(goalSelected[i] == 1)
+		{
+			var temp = i + "";
+			var markerStr;
+			if(i < 10)
+				markerStr = "images/g00" + temp + ".png";
+			else if(i < 100)
+				markerStr = "images/g0" + temp + ".png";
+			else if(i < 1000)
+				markerStr = "images/g0" + temp + ".png";
+			maphelper.markerPoint({
+				  lat: goalPosition[i][0],
+				  lng: goalPosition[i][1],
+				  icon:markerStr
+			  });	
+		}
+	}
+}
+
+function SelectGoal(agent_id) // 单个选择目标点
+{
+        if(goalSelected[agent_id] == 0)
+        {
+                maphelper.bindInstanceEvent(mapobj, 'click', function(event){//鼠标点击响应
+                $("#CLAT").val(event.latLng.lat());
+                $("#CLNG").val(event.latLng.lng());
+                var x=event.latLng.lat();
+                var y=event.latLng.lng();
+                var temp = agent_id + "";
+                var markerStr;
+                if(agent_id < 10)
+                        markerStr = "images/g00" + temp + ".png";
+                else if(agent_id < 100)
+                        markerStr = "images/g0" + temp + ".png";
+                else if(agent_id < 1000)
+                        markerStr = "images/g0" + temp + ".png";
+                maphelper.markerPoint({
+                          lat: x,
+                          lng: y,
+                          icon:markerStr
+                  });
+                goalPosition[agent_id][0] = x;
+                goalPosition[agent_id][1] = y;
+                send2qt(x, y, agent_id);
+                maphelper.clearInstanceEvent(mapobj, 'click');
+         });
+         goalSelected[agent_id] = 1;
+         return true;
+        }
+        else
+        {
+                return false;
+        }
+}
+
+function SelectLeaderGoal(leader_goal_account) // 为领航者设置目标点
+{
+    maphelper.bindInstanceEvent(mapobj, 'click', function(event){//鼠标点击响应
+    $("#CLAT").val(event.latLng.lat());
+    $("#CLNG").val(event.latLng.lng());
+    var x=event.latLng.lat();
+    var y=event.latLng.lng();
+    var markerStr = "images/red_dot.png";
+    maphelper.markerPoint({
+              lat: x,
+              lng: y,
+              icon:markerStr
+      });
+    leaderGoalPosition[leader_goal_account][0] = x;
+    leaderGoalPosition[leader_goal_account][1] = y;
+    send2qt(x, y, leader_goal_account);
+    maphelper.clearInstanceEvent(mapobj, 'click');
+     });
+     return true;
+}
+
+function SelectCenterPoint(agent_id) // 设置队形中心点。输入变量agent_id为领航者id，暂时没有用到，可以根据需要修改
+{
+        if(goalSelected[agent_id] == 0) // 如果没有设置过目标点
+        {
+
+                maphelper.bindInstanceEvent(mapobj, 'click', function(event){//鼠标点击响应
+                $("#CLAT").val(event.latLng.lat());
+                $("#CLNG").val(event.latLng.lng());
+                var x=event.latLng.lat();
+                var y=event.latLng.lng();
+
+                for(var i=1; i<=formationAccount; i++)
+                {
+                    var temp = i + "";
+                    var markerStr;
+                    if(i < 10)
+                            markerStr = "images/g00" + temp + ".png";
+                    else if(i < 100)
+                            markerStr = "images/g0" + temp + ".png";
+                    else if(i < 1000)
+                            markerStr = "images/g0" + temp + ".png";
+                    maphelper.markerPoint({
+                              lat: (x+formationPosition[i][0]*1e-5),
+                              lng: (y+formationPosition[i][1]*1e-5),
+                              icon:markerStr
+                      });
+                    goalPosition[i][0] = (x+formationPosition[i][0]*1e-5);
+                    goalPosition[i][1] = (y+formationPosition[i][1]*1e-5);
+                    goalSelected[i] = 1;
+                }
+
+                send2qt(x, y, agent_id);
+                maphelper.clearInstanceEvent(mapobj, 'click');
+         });
+         return true;
+        }
+        else
+        {
+                alert("Please clear goal positions first!");
+                return false;
+        }
+}
+
+
+function SetFormation(x,y,n) // 获取队形坐标
+{
+    formationAccount = parseInt(n)+1;
+    formationPosition[formationAccount][0] = x;
+    formationPosition[formationAccount][1] = y;
+}
+
+var GPS = {
+    PI : 3.14159265358979324,
+    x_pi : 3.14159265358979324 * 3000.0 / 180.0,
+    delta : function (lat, lon) {
+        // Krasovsky 1940
+        //
+        // a = 6378245.0, 1/f = 298.3
+        // b = a * (1 - f)
+        // ee = (a^2 - b^2) / a^2;
+        var a = 6378245.0; //  a: 卫星椭球坐标投影到平面地图坐标系的投影因子。
+        var ee = 0.00669342162296594323; //  ee: 椭球的偏心率。
+        var dLat = this.transformLat(lon - 105.0, lat - 35.0);
+        var dLon = this.transformLon(lon - 105.0, lat - 35.0);
+        var radLat = lat / 180.0 * this.PI;
+        var magic = Math.sin(radLat);
+        magic = 1 - ee * magic * magic;
+        var sqrtMagic = Math.sqrt(magic);
+        dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * this.PI);
+        dLon = (dLon * 180.0) / (a / sqrtMagic * Math.cos(radLat) * this.PI);
+        return {'lat': dLat, 'lon': dLon};
+    },
+
+    //WGS-84 to GCJ-02
+    gcj_encrypt : function (wgsLat, wgsLon) {
+        if (this.outOfChina(wgsLat, wgsLon))
+            return {'lat': wgsLat, 'lon': wgsLon};
+
+        var d = this.delta(wgsLat, wgsLon);
+                //var x=Math.(wgsLat + d.lat);
+                //var y=Math.(wgsLon + d.lon);
+        return {'lat' :  parseFloat(wgsLat)+parseFloat(d.lat),'lon' : parseFloat(wgsLon)+parseFloat(d.lon)};
+    },
+    //GCJ-02 to WGS-84
+    gcj_decrypt : function (gcjLat, gcjLon) {
+        if (this.outOfChina(gcjLat, gcjLon))
+            return {'lat': gcjLat, 'lon': gcjLon};
+
+        var d = this.delta(gcjLat, gcjLon);
+        return {'lat': parseFloat(gcjLat) - parseFloat(d.lat), 'lon': parseFloat(gcjLon) - parseFloat(d.lon)};
+    },
+    //GCJ-02 to WGS-84 exactly
+    gcj_decrypt_exact : function (gcjLat, gcjLon) {
+        var initDelta = 0.01;
+        var threshold = 0.000000001;
+        var dLat = initDelta, dLon = initDelta;
+        var mLat = gcjLat - dLat, mLon = gcjLon - dLon;
+        var pLat = gcjLat + dLat, pLon = gcjLon + dLon;
+        var wgsLat, wgsLon, i = 0;
+        while (1) {
+            wgsLat = (mLat + pLat) / 2;
+            wgsLon = (mLon + pLon) / 2;
+            var tmp = this.gcj_encrypt(wgsLat, wgsLon)
+            dLat = tmp.lat - gcjLat;
+            dLon = tmp.lon - gcjLon;
+            if ((Math.abs(dLat) < threshold) && (Math.abs(dLon) < threshold))
+                break;
+
+            if (dLat > 0) pLat = wgsLat; else mLat = wgsLat;
+            if (dLon > 0) pLon = wgsLon; else mLon = wgsLon;
+
+            if (++i > 10000) break;
+        }
+        //console.log(i);
+        return {'lat': wgsLat, 'lon': wgsLon};
+    },
+    //GCJ-02 to BD-09
+    bd_encrypt : function (gcjLat, gcjLon) {
+        var x = gcjLon, y = gcjLat;
+        var z = Math.sqrt(x * x + y * y) + 0.00002 * Math.sin(y * this.x_pi);
+        var theta = Math.atan2(y, x) + 0.000003 * Math.cos(x * this.x_pi);
+        bdLon = z * Math.cos(theta) + 0.0065;
+        bdLat = z * Math.sin(theta) + 0.006;
+        return {'lat' : bdLat,'lon' : bdLon};
+    },
+    //BD-09 to GCJ-02
+    bd_decrypt : function (bdLat, bdLon) {
+        var x = bdLon - 0.0065, y = bdLat - 0.006;
+        var z = Math.sqrt(x * x + y * y) - 0.00002 * Math.sin(y * this.x_pi);
+        var theta = Math.atan2(y, x) - 0.000003 * Math.cos(x * this.x_pi);
+        var gcjLon = z * Math.cos(theta);
+        var gcjLat = z * Math.sin(theta);
+        return {'lat' : gcjLat, 'lon' : gcjLon};
+    },
+    //WGS-84 to Web mercator
+    //mercatorLat -> y mercatorLon -> x
+    mercator_encrypt : function(wgsLat, wgsLon) {
+        var x = wgsLon * 20037508.34 / 180.;
+        var y = Math.log(Math.tan((90. + wgsLat) * this.PI / 360.)) / (this.PI / 180.);
+        y = y * 20037508.34 / 180.;
+        return {'lat' : y, 'lon' : x};
+        /*
+        if ((Math.abs(wgsLon) > 180 || Math.abs(wgsLat) > 90))
+            return null;
+        var x = 6378137.0 * wgsLon * 0.017453292519943295;
+        var a = wgsLat * 0.017453292519943295;
+        var y = 3189068.5 * Math.log((1.0 + Math.sin(a)) / (1.0 - Math.sin(a)));
+        return {'lat' : y, 'lon' : x};
+        //*/
+    },
+    // Web mercator to WGS-84
+    // mercatorLat -> y mercatorLon -> x
+    mercator_decrypt : function(mercatorLat, mercatorLon) {
+        var x = mercatorLon / 20037508.34 * 180.;
+        var y = mercatorLat / 20037508.34 * 180.;
+        y = 180 / this.PI * (2 * Math.atan(Math.exp(y * this.PI / 180.)) - this.PI / 2);
+        return {'lat' : y, 'lon' : x};
+        /*
+        if (Math.abs(mercatorLon) < 180 && Math.abs(mercatorLat) < 90)
+            return null;
+        if ((Math.abs(mercatorLon) > 20037508.3427892) || (Math.abs(mercatorLat) > 20037508.3427892))
+            return null;
+        var a = mercatorLon / 6378137.0 * 57.295779513082323;
+        var x = a - (Math.floor(((a + 180.0) / 360.0)) * 360.0);
+        var y = (1.5707963267948966 - (2.0 * Math.atan(Math.exp((-1.0 * mercatorLat) / 6378137.0)))) * 57.295779513082323;
+        return {'lat' : y, 'lon' : x};
+        //*/
+    },
+    // two point's distance
+    distance : function (latA, lonA, latB, lonB) {
+        var earthR = 6371000.;
+        var x = Math.cos(latA * this.PI / 180.) * Math.cos(latB * this.PI / 180.) * Math.cos((lonA - lonB) * this.PI / 180);
+        var y = Math.sin(latA * this.PI / 180.) * Math.sin(latB * this.PI / 180.);
+        var s = x + y;
+        if (s > 1) s = 1;
+        if (s < -1) s = -1;
+        var alpha = Math.acos(s);
+        var distance = alpha * earthR;
+        return distance;
+    },
+    outOfChina : function (lat, lon) {
+        if (lon < 72.004 || lon > 137.8347)
+            return true;
+        if (lat < 0.8293 || lat > 55.8271)
+            return true;
+        return false;
+    },
+    transformLat : function (x, y) {
+        var ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+        ret += (20.0 * Math.sin(6.0 * x * this.PI) + 20.0 * Math.sin(2.0 * x * this.PI)) * 2.0 / 3.0;
+        ret += (20.0 * Math.sin(y * this.PI) + 40.0 * Math.sin(y / 3.0 * this.PI)) * 2.0 / 3.0;
+        ret += (160.0 * Math.sin(y / 12.0 * this.PI) + 320 * Math.sin(y * this.PI / 30.0)) * 2.0 / 3.0;
+        return ret;
+    },
+    transformLon : function (x, y) {
+        var ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+        ret += (20.0 * Math.sin(6.0 * x * this.PI) + 20.0 * Math.sin(2.0 * x * this.PI)) * 2.0 / 3.0;
+        ret += (20.0 * Math.sin(x * this.PI) + 40.0 * Math.sin(x / 3.0 * this.PI)) * 2.0 / 3.0;
+        ret += (150.0 * Math.sin(x / 12.0 * this.PI) + 300.0 * Math.sin(x / 30.0 * this.PI)) * 2.0 / 3.0;
+        return ret;
+    }
+};
+
+/*function Line(x,y,z,e)
+{
+    maphelper.movePoint(x,y);
+    z.push(new Array(x,y));
+    var color = $("#COLOR").val();
+    var weight = $("#WEIGHT").val();
+    var opacity = $("#OPACITY").val();//画线                    
+    var poly = maphelper.polyline({
+                                    dots:z,
+                                    color:e,
+                                    weight:weight,
+                                    opacity:opacity
+                    });
+}*/
+
+
+</script>
+</head>
+    
+<body>
+
+<div style="margin:0px;border:1px solid #cfdfe4;">
+
+        <div id="map_canvas" style="margin:0px ;width:100%; height:1440px;float:left;border:1px solid #cfdfe4"></div>
+        <div style="clear:both;"></div>
+</div>
+</body>
+</html>

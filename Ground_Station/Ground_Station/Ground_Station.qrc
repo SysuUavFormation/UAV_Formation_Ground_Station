@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/images">
+        <file>configuration_icon.png</file>
+        <file>map_icon.png</file>
+        <file>status_icon.png</file>
+    </qresource>
+</RCC>
