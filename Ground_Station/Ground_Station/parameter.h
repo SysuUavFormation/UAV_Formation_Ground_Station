@@ -1,8 +1,8 @@
 #ifndef PARAMETER
 #define PARAMETER
 #include "commons.h"
-//#define AGENT_ACCOUNT 11
-#define AGENT_ACCOUNT 2
+#define AGENT_ACCOUNT 11
+//#define AGENT_ACCOUNT 2
 //全局变量
 extern uint8 orca_begin;
 extern bool uav_arrival_flag_b ;       //是否已经发送到达的标志，置true为已经发送, false为未发送
