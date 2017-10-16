@@ -1,0 +1,5 @@
+经过测试，下载后可以直接用QT打开编译运行，若无法编译，可能为以下几种情况导致：
+1.可以删除Ground_Station.pro.user文件，再次尝试编译是否正常
+2.QT版本不同导致相关代码不兼容问题，我们在QT5_5_0版本中编译正常，无需改动
+编译正常，但是离线地图不显示的问题：
+1.mappage.cpp文件中的一行QDir tempDir("D:/QT/Ground_Station/map/test.html");修改成test.html文件在对应主机上的绝对路径才可以显示离线地图  
